@@ -10,13 +10,16 @@ const Shader = @import("shader.zig").Shader;
 // const vertex_shader_source = @embedFile("./vert.glsl");
 // const fragment_shader_source = @embedFile("./frag.glsl");
 
-const vertices = &[_]f32{
+const o_vertices = &[_]f32{
     // position // color // texture
     0.5, 0.5, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, // top right
     0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, // bottom right
     -0.5, -0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, // bottom left
     -0.5, 0.5, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, // top left
 };
+
+const cube_vertices = @import("cube.zig").vertices;
+const vertices = cube_vertices;
 
 const indices = &[_]c_uint{
     0, 1, 3,
@@ -62,7 +65,7 @@ pub fn main() !void {
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices.len * @bitSizeOf(c_uint), indices, gl.STATIC_DRAW);
 
     // position attribute
-    gl.vertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, 8 * @sizeOf(f32), null);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, 5 * @sizeOf(f32), null);
     gl.enableVertexAttribArray(0);
     // color attribute
     gl.vertexAttribPointer(1, 3, gl.FLOAT, gl.FALSE, 8 * @sizeOf(f32), @ptrFromInt(3 * @sizeOf(f32)));
@@ -114,13 +117,6 @@ pub fn main() !void {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, t2_w, t2_h, 0, gl.RGBA, gl.UNSIGNED_BYTE, @ptrCast(t2_d));
     gl.generateMipmap(gl.TEXTURE_2D);
 
-    const camPos: zm.Vec = .{ 0.0, 0.0, 0.3, 0.0 };
-    const camTarget: zm.Vec = .{ 0.0, 0.0, 0.0, 0.0 };
-    const camDirection = zm.normalize3(camPos - camTarget);
-    const up: zm.Vec = .{ 0.0, 1.0, 0.0, 0.0 };
-    const camRight = zm.normalize3(zm.cross3(up, camDirection));
-    _ = camRight;
-
     var trans = zm.identity();
 
     // const r = zm.rotationZ(1.570796);
@@ -128,16 +124,28 @@ pub fn main() !void {
     // trans = zm.mul(trans, r);
     // trans = zm.mul(trans, s);
 
+    const window_size = win.getSize();
+    const projection = zm.perspectiveFovLhGl(0.7853, @as(f32, @floatFromInt(window_size[0])) / @as(f32, @floatFromInt(window_size[1])), 0.1, 100.0);
+
+    gl.enable(gl.DEPTH_TEST);
     while (!win.shouldClose()) {
         processInput(win);
 
         gl.clearColor(0.2, 0.3, 0.3, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         // gl.polygonMode(gl.FRONT_AND_BACK, gl.LINE);
 
         const time_val = glfw.getTime();
         const green_val = std.math.sin(time_val) / 2.0 + 0.5;
+
+        var view = zm.identity();
+        view = zm.mul(view, zm.translation(0.0, 0.0, 3.0));
+        // const radius = 10.0;
+        // const camX = @sin(time_val) * radius;
+        // const camZ = @sin(time_val) * radius;
+        // const view = zm.lookAtRh(.{ @floatCast(camX), 0.0, @floatCast(camZ), 0.0 }, .{ 0.0, 0.0, 0.0, 0.0 }, .{ 0.0, 0.1, 0.0, 0.0 });
+
         // gl.useProgram(shader_program);
         // gl.uniform3f(colorUniformLocation, 0.0, @floatCast(green_val), 0.0);
         shader.use();
@@ -147,9 +155,22 @@ pub fn main() !void {
         // const rot = zm.rotationZ(@floatCast(glfw.getTime() / 1000.0));
         const rot = zm.rotationZ(0.005);
         trans = zm.mul(rot, trans);
+
+        var model = zm.identity();
+        // model = zm.mul(model, zm.rotationX(-55.0));
+        model = zm.mul(model, zm.rotationX(@floatCast(1.0 * time_val)));
+        model = zm.mul(model, zm.rotationY(@floatCast(1.0 * time_val)));
+        // model = zm.mul(model, zm.translation(0.0, -1.0, 0.0));
+
         // trans = zm.mul(trans, rot);
         const transLoc = gl.getUniformLocation(shader.id, "transform");
         gl.uniformMatrix4fv(transLoc, 1, gl.FALSE, &zm.matToArr(trans));
+        const viewLoc = gl.getUniformLocation(shader.id, "view");
+        gl.uniformMatrix4fv(viewLoc, 1, gl.FALSE, &zm.matToArr(view));
+        const projLoc = gl.getUniformLocation(shader.id, "projection");
+        gl.uniformMatrix4fv(projLoc, 1, gl.FALSE, &zm.matToArr(projection));
+        const modelLoc = gl.getUniformLocation(shader.id, "model");
+        gl.uniformMatrix4fv(modelLoc, 1, gl.FALSE, &zm.matToArr(model));
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -157,7 +178,8 @@ pub fn main() !void {
         gl.bindTexture(gl.TEXTURE_2D, t2);
         gl.bindVertexArray(vao);
         // gl.drawArrays(gl.TRIANGLES, 0, 3);
-        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, null);
+        // gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, null);
+        gl.drawArrays(gl.TRIANGLES, 0, 36);
         gl.bindVertexArray(0);
 
         // gl.polygonMode(gl.FRONT_AND_BACK, gl.FILL);
