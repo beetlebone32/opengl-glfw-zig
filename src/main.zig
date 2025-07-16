@@ -141,12 +141,12 @@ pub fn main() !void {
         const time_val = glfw.getTime();
         const green_val = std.math.sin(time_val) / 2.0 + 0.5;
 
-        var view = zm.identity();
-        view = zm.mul(view, zm.translation(0.0, 0.0, 10.0));
-        // const radius = 10.0;
-        // const camX = @sin(time_val) * radius;
-        // const camZ = @sin(time_val) * radius;
-        // const view = zm.lookAtRh(.{ @floatCast(camX), 0.0, @floatCast(camZ), 0.0 }, .{ 0.0, 0.0, 0.0, 0.0 }, .{ 0.0, 0.1, 0.0, 0.0 });
+        // var view = zm.identity();
+        // view = zm.mul(view, zm.translation(0.0, 0.0, 10.0));
+        const radius = 10.0;
+        const camX = @sin(time_val / 10.0) * radius;
+        const camZ = @cos(time_val / 10.0) * radius;
+        const view = zm.lookAtLh(.{ @floatCast(camX), 0.0, @floatCast(camZ), 0.0 }, .{ 0.0, 0.0, 0.0, 0.0 }, .{ 0.0, 1.0, 0.0, 0.0 });
 
         // gl.useProgram(shader_program);
         // gl.uniform3f(colorUniformLocation, 0.0, @floatCast(green_val), 0.0);
