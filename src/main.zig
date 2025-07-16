@@ -18,8 +18,8 @@ const o_vertices = &[_]f32{
     -0.5, 0.5, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, // top left
 };
 
-const cube_vertices = @import("cube.zig").vertices;
-const vertices = cube_vertices;
+const cube = @import("cube.zig");
+const vertices = cube.vertices;
 
 const indices = &[_]c_uint{
     0, 1, 3,
@@ -125,7 +125,9 @@ pub fn main() !void {
     // trans = zm.mul(trans, s);
 
     const window_size = win.getSize();
+
     const projection = zm.perspectiveFovLhGl(0.7853, @as(f32, @floatFromInt(window_size[0])) / @as(f32, @floatFromInt(window_size[1])), 0.1, 100.0);
+    // const projection = zm.perspectiveFovLhGl(99.0, @as(f32, @floatFromInt(window_size[0])) / @as(f32, @floatFromInt(window_size[1])), 0.1, 100.0);
 
     gl.enable(gl.DEPTH_TEST);
     while (!win.shouldClose()) {
@@ -140,7 +142,7 @@ pub fn main() !void {
         const green_val = std.math.sin(time_val) / 2.0 + 0.5;
 
         var view = zm.identity();
-        view = zm.mul(view, zm.translation(0.0, 0.0, 3.0));
+        view = zm.mul(view, zm.translation(0.0, 0.0, 10.0));
         // const radius = 10.0;
         // const camX = @sin(time_val) * radius;
         // const camZ = @sin(time_val) * radius;
@@ -156,12 +158,6 @@ pub fn main() !void {
         const rot = zm.rotationZ(0.005);
         trans = zm.mul(rot, trans);
 
-        var model = zm.identity();
-        // model = zm.mul(model, zm.rotationX(-55.0));
-        model = zm.mul(model, zm.rotationX(@floatCast(1.0 * time_val)));
-        model = zm.mul(model, zm.rotationY(@floatCast(1.0 * time_val)));
-        // model = zm.mul(model, zm.translation(0.0, -1.0, 0.0));
-
         // trans = zm.mul(trans, rot);
         const transLoc = gl.getUniformLocation(shader.id, "transform");
         gl.uniformMatrix4fv(transLoc, 1, gl.FALSE, &zm.matToArr(trans));
@@ -169,8 +165,6 @@ pub fn main() !void {
         gl.uniformMatrix4fv(viewLoc, 1, gl.FALSE, &zm.matToArr(view));
         const projLoc = gl.getUniformLocation(shader.id, "projection");
         gl.uniformMatrix4fv(projLoc, 1, gl.FALSE, &zm.matToArr(projection));
-        const modelLoc = gl.getUniformLocation(shader.id, "model");
-        gl.uniformMatrix4fv(modelLoc, 1, gl.FALSE, &zm.matToArr(model));
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -179,7 +173,20 @@ pub fn main() !void {
         gl.bindVertexArray(vao);
         // gl.drawArrays(gl.TRIANGLES, 0, 3);
         // gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, null);
-        gl.drawArrays(gl.TRIANGLES, 0, 36);
+        for (cube.cube_positions) |cpos| {
+            var model = zm.identity();
+            // model = zm.mul(model, zm.rotationX(-55.0));
+            model = zm.mul(model, zm.rotationX(@floatCast(-1.0 * time_val)));
+            model = zm.mul(model, zm.rotationY(@floatCast(-1.0 * time_val)));
+            model = zm.mul(model, zm.translation(cpos[0], cpos[1], cpos[2]));
+            // model = zm.mul(model, zm.rotationX(@floatCast(1.0 * time_val)));
+            // model = zm.mul(model, zm.rotationY(@floatCast(1.0 * time_val)));
+            // model = zm.mul(model, zm.translation(0.0, -1.0, 0.0));
+            const modelLoc = gl.getUniformLocation(shader.id, "model");
+            gl.uniformMatrix4fv(modelLoc, 1, gl.FALSE, &zm.matToArr(model));
+
+            gl.drawArrays(gl.TRIANGLES, 0, 36);
+        }
         gl.bindVertexArray(0);
 
         // gl.polygonMode(gl.FRONT_AND_BACK, gl.FILL);
